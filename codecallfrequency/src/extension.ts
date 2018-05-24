@@ -27,35 +27,31 @@ class CallStackLens extends vscode.CodeLens {
     }
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-class CustomCodeLensProvider implements vscode.CodeLensProvider {
-    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
-        //(?:public|protected|internal|private)(\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?(?:\s+)(?<returnValue>\w+(?:<(?<genericReturnArguments>(?:\w+(?:\s*\,\s*)?)*)>)?)(?:\s+)(?<methodName>\w+)(?:<(?<genericMethodArguments>(?:\w+(?:\s*\,\s*)?)*)>)?\s*\((?<parameters>(?:\w+(?:<(?<generic3>(?:\w+(?:\s*\,\s*)?)*)>)?\s+\w*(?:\s*\,\s*)?)*)\)
-        const regEx = /(?:public|protected|internal|private)(\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?(?:\s+)(\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?)(?:\s+)(\w+)(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s*\(((?:\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s+\w*(?:\s*\,\s*)?)*)\)/g;
-        const text = document.getText();
-        let match;
+class WebApi {
+    static protocol: string = "http";
+    static host: string = "servernamehere";
+    static port: number = 4000;
+    static webApiBase = WebApi.protocol + "://" + WebApi.host + ":" + WebApi.port + "/api/";
 
-        let ret: vscode.CodeLens[] = [];
-
-        while (match = regEx.exec(text)) {
-            const startPos = document.positionAt(match.index);
-            const endPos = document.positionAt(match.index + match[0].length);
-
-            ret.push(new CallStackLens(new vscode.Range(startPos, endPos), match[0]));
-        }
-
-        return ret;
+    static getData(methodname: string, predicate: number): string {
+        return WebApi.webApiBase + "read_one?predicate=" + predicate + "&subject=" + methodname;
     }
+}
+
+abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
+
+    abstract selector: vscode.DocumentSelector;
+    abstract provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]>;
 
     resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken): vscode.CodeLens | Thenable<vscode.CodeLens> {
         if (codeLens instanceof CallStackLens && codeLens) {
-            var callStackLens = codeLens as CallStackLens;
-            callStackLens.command = new CallStackCommand("computing code calls", "");
+            codeLens.command = new CallStackCommand("loading code calls...", "");
 
             return new Promise<vscode.CodeLens>((resolve, reject) => {
+                resolve(codeLens);
+
                 http.get(
-                    "http://192.168.43.61:4000/api/read?predicate=1&subject=" + codeLens.method,
+                    WebApi.getData(codeLens.method, 1),
                     res => {
                         let content: string = "";
 
@@ -66,22 +62,31 @@ class CustomCodeLensProvider implements vscode.CodeLensProvider {
                             }
                         });
 
-
                         res.addListener("end",
                             () => {
                                 if (codeLens.command) {
                                     try {
                                         var json = JSON.parse(content);
-                                        log(codeLens.method);
-                                        codeLens.command.title = json.result + " calls last 24 hours";
+
+                                        if (json.result === null) {
+                                            codeLens.command.title = "never called";
+                                        }
+                                        else {
+                                            codeLens.command.title = json.result.count + " calls in the last " + json.result.granularity + " days";
+                                        }
+
                                         resolve(codeLens);
-                                        //this.onDidChangeCodeLenses()
                                     }
                                     catch (e) {
                                         log(e);
                                     }
                                 }
                             });
+                    }).on("error", () => {
+                        if (codeLens.command) {
+                            codeLens.command.title = "Data server not available";
+                            resolve(codeLens);
+                        }
                     });
             });
 
@@ -90,6 +95,49 @@ class CustomCodeLensProvider implements vscode.CodeLensProvider {
     }
 }
 
+abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
+
+    abstract regEx: RegExp;
+
+    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
+        const text = document.getText();
+        let match;
+        let ret: vscode.CodeLens[] = [];
+
+        while (match = this.regEx.exec(text)) {
+            const startPos = document.positionAt(match.index);
+            const endPos = document.positionAt(match.index + match[0].length);
+
+            ret.push(new CallStackLens(new vscode.Range(startPos, endPos), match[0]));
+        }
+
+        return ret;
+    }
+}
+
+class CsharpCodeLensProvider extends RegexCodeLensProvider {
+    selector: vscode.DocumentSelector = { scheme:'file',language:'csharp' };
+    regEx: RegExp = /(?:public|protected|internal|private)(\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?(?:\s+)(\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?)(?:\s+)(\w+)(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s*\(((?:\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s+\w*(?:\s*\,\s*)?)*)\)/g;
+}
+
+class ElixirCodeLensProvider extends RegexCodeLensProvider {
+    selector: vscode.DocumentSelector = { scheme:'file',language:'elixir' };
+    regEx: RegExp = /def[p]?\s+(\w+)\(.*\)\s*,?\s*do/g;
+}
+
+class JavaCodeLensProvider extends RegexCodeLensProvider {
+    selector: vscode.DocumentSelector = { scheme:'file',language:'java' };
+    regEx: RegExp = /(public|protected|private|static|\s)+[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\) *(\{?|[^;])/g;
+}
+
 export function activate(ctx: vscode.ExtensionContext): void {
-    ctx.subscriptions.push(vscode.languages.registerCodeLensProvider(['*'], new CustomCodeLensProvider()));
+    let lenses: CodeCallsCodeLensProvider[] = [
+        new CsharpCodeLensProvider(),
+        new JavaCodeLensProvider(),
+        new ElixirCodeLensProvider(),
+    ];
+
+    lenses.forEach(element => {
+        ctx.subscriptions.push(vscode.languages.registerCodeLensProvider(element.selector, element));
+    });
 }

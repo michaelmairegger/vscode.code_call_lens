@@ -12,17 +12,11 @@
     ],
     "activationEvents": [
         "onCommand:extension.sayHello",
-        "onLanguage:csharp"
+        "onLanguage:csharp",
+        "onLanguage:java",
+        "onLanguage:elixir"
     ],
     "main": "./out/extension",
-    "contributes": {
-        "commands": [
-            {
-                "command": "extension.sayHello",
-                "title": "Hello World"
-            }
-        ]
-    },
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
