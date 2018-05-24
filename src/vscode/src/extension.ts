@@ -29,21 +29,26 @@ class CallStackLens extends vscode.CodeLens {
 
 class Settings {
     static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
-    static isEnabled: boolean | undefined = vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled");
-    static hostname: string | undefined = vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
-    static granularity: number | undefined = vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity");
+    static getIsEnabled(): boolean | undefined {
+        return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled");
+    }
+    static getHostname(): string | undefined {
+        return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
+    }
+    static getGranularity(): number | undefined {
+        return vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity");
+    }
 }
 
 class WebApi {
-    static getData(methodName: string, predicate: number): string {
-
-        var query = Settings.hostname + "/api/read_one?" +
-            //"source=" + Settings.pluginGuid + "&" +
-            //"granularity=" + Settings.granularity + "&" +
+    static getHttpQuery(methodName: string, predicate: number): string {
+        var query = Settings.getHostname() + "/api/read_one?" +
+            "source=" + Settings.pluginGuid + "&" +
+            "granularity=" + Settings.getGranularity() + "&" +
             "predicate=" + String(predicate) + "&" +
             "subject=" + methodName;
 
-            return query;
+        return query;
     }
 }
 
@@ -60,7 +65,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                 //resolve(codeLens);
 
                 http.get(
-                    WebApi.getData(codeLens.method, 1),
+                    WebApi.getHttpQuery(codeLens.method, 1),
                     res => {
                         let content: string = "";
 
@@ -81,7 +86,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                                             codeLens.command.title = "Never called";
                                         }
                                         else {
-                                            codeLens.command.title = String(json.result.count) + (json.result.count === 1? " call" : " calls") + " in the last " + json.result.granularity + " days";
+                                            codeLens.command.title = String(json.result.count) + (json.result.count === 1 ? " call" : " calls") + " in the last " + json.result.granularity + " days";
                                         }
 
                                         resolve(codeLens);
@@ -114,7 +119,7 @@ abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
         let ret: vscode.CodeLens[] = [];
 
 
-        if (Settings.isEnabled) {
+        if (Settings.getIsEnabled()) {
             while (match = this.regEx.exec(text)) {
                 const startPos = document.positionAt(match.index);
                 const endPos = document.positionAt(match.index + match[0].length);
