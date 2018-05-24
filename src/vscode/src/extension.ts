@@ -6,13 +6,13 @@ import * as http from 'http';
 import { log } from 'util';
 
 class CallStackCommand implements vscode.Command {
+    title: string;
+    command: string;
+
     constructor(title: string, command: string) {
         this.title = title;
         this.command = command;
     }
-
-    title: string;
-    command: string;
 }
 
 class CallStackLens extends vscode.CodeLens {
@@ -29,12 +29,15 @@ class CallStackLens extends vscode.CodeLens {
 
 class Settings {
     static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
+
     static getIsEnabled(): boolean | undefined {
         return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled");
     }
+
     static getHostname(): string | undefined {
         return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
     }
+
     static getGranularity(): number | undefined {
         return vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity");
     }
@@ -53,16 +56,17 @@ class WebApi {
 }
 
 abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
-
     abstract selector: vscode.DocumentSelector;
+
     abstract provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]>;
 
-    resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken): vscode.CodeLens | Thenable<vscode.CodeLens> {
+    resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken): 
+    vscode.CodeLens | Thenable<vscode.CodeLens> {
         if (codeLens instanceof CallStackLens && codeLens) {
-            codeLens.command = new CallStackCommand("loading code calls...", "");
+            codeLens.command = new CallStackCommand(codeLens.method, "");
 
             return new Promise<vscode.CodeLens>((resolve, reject) => {
-                //resolve(codeLens);
+                resolve(codeLens);
 
                 http.get(
                     WebApi.getHttpQuery(codeLens.method, 1),
@@ -110,41 +114,91 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
 }
 
 abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
+    //important to have the method name on regex group #1
+    abstract regExpMethod: RegExp;
+    //important to have the module name on regex group #1
+    abstract regExpModule: RegExp;
+    //important to have the class name on regex group #1
+    abstract regExpClass: RegExp;
 
-    abstract regEx: RegExp;
+    getClassesOrModules(regex: RegExp, document: vscode.TextDocument, token: vscode.CancellationToken): IdentifierHelper[] {
+        let ret: IdentifierHelper[] = [];
+        let match;
 
-    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
+        while (match = regex.exec(document.getText())) {
+            var group = match[1];
+            const startPos = document.positionAt(match.index);
+            const endPos = document.positionAt(match.index + match[0].length);
+            ret.push(new IdentifierHelper(group, new vscode.Range(startPos, endPos)));
+        }
+        return ret;
+    }
+
+    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken):
+        vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
         const text = document.getText();
         let match;
         let ret: vscode.CodeLens[] = [];
 
-
         if (Settings.getIsEnabled()) {
-            while (match = this.regEx.exec(text)) {
+            var modules = this.getClassesOrModules(this.regExpModule, document, token);
+            var classes = this.getClassesOrModules(this.regExpClass, document, token);
+
+            while (match = this.regExpMethod.exec(text)) {
                 const startPos = document.positionAt(match.index);
                 const endPos = document.positionAt(match.index + match[0].length);
 
-                ret.push(new CallStackLens(new vscode.Range(startPos, endPos), match[0]));
+                var methodName = match[1];
+                var module = this.getNearestModuleOrClass(startPos, modules);
+                var currentClass = this.getNearestModuleOrClass(startPos, classes);
+                var fullQualifiedName = module + currentClass + methodName;
+
+                ret.push(new CallStackLens(new vscode.Range(startPos, endPos), fullQualifiedName));
             }
         }
 
         return ret;
     }
+
+    getNearestModuleOrClass(position: vscode.Position, modules: IdentifierHelper[]): string {
+        for (let index = modules.length - 1; index >= 0; index--) {
+            if (modules[index].range.start.isBeforeOrEqual(position)) {
+                return modules[index].name + ".";
+            }
+        }
+        return "";
+    }
+}
+
+class IdentifierHelper {
+    name: string;
+    range: vscode.Range;
+    
+    constructor(name: string, range: vscode.Range) {
+        this.name = name;
+        this.range = range;
+    }
 }
 
 class CsharpCodeLensProvider extends RegexCodeLensProvider {
     selector: vscode.DocumentSelector = { scheme: 'file', language: 'csharp' };
-    regEx: RegExp = /(?:public|protected|internal|private)(\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?(?:\s+)(\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?)(?:\s+)(\w+)(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s*\(((?:\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s+\w*(?:\s*\,\s*)?)*)\)/g;
+    regExpModule: RegExp = /namespace\s+([\w.]+)/g;
+    regExpMethod: RegExp = /(?:public|protected|internal|private)(?:\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?\s+[\w+<>\[\]\s]+\s+([\w]+\([\w\s<>]*\))/g;
+    regExpClass: RegExp = /(?:public|private|internal)\s+(?:abstract)\s+class\s+([\w<>]+)/g;
 }
 
 class ElixirCodeLensProvider extends RegexCodeLensProvider {
     selector: vscode.DocumentSelector = { scheme: 'file', language: 'elixir' };
-    regEx: RegExp = /def[p]?\s+(\w+)\(.*\)\s*,?\s*do/g;
+    regExpMethod: RegExp = /def[p]?\s+((?:\w+)(?:\(.*\))?)\s*,?\s*do/g;
+    regExpModule: RegExp = /defmodule\s+([\w.]+)\s+do/g;
+    regExpClass: RegExp = /^$/g;
 }
 
 class JavaCodeLensProvider extends RegexCodeLensProvider {
+    regExpModule: RegExp = /package\s+([\w.]+);/g;
     selector: vscode.DocumentSelector = { scheme: 'file', language: 'java' };
-    regEx: RegExp = /(public|protected|private|static|\s)+[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\) *(\{?|[^;])/g;
+    regExpMethod: RegExp = /(?:public|protected|private|static|\s)+[\w<\>\[\]]+\s+([\w]+\s*(?:\w+)*\([^\)]*\))/g;
+    regExpClass: RegExp = /(?:public|protected|private|static)\s*class\s+([\w.<>]+)/g;
 }
 
 export function activate(ctx: vscode.ExtensionContext): void {
