@@ -35,13 +35,15 @@ class Settings {
 }
 
 class WebApi {
-    static getData(methodname: string, predicate: number): string {
+    static getData(methodName: string, predicate: number): string {
 
-        return Settings.hostname + "/api/read_one?" +
-            + "source=" + Settings.pluginGuid + "&" +
-            + "granularity=" + Settings.granularity + "&" +
-            + "predicate=" + predicate + "&" +
-            + "subject=" + methodname;
+        var query = Settings.hostname + "/api/read_one?" +
+            //"source=" + Settings.pluginGuid + "&" +
+            //"granularity=" + Settings.granularity + "&" +
+            "predicate=" + String(predicate) + "&" +
+            "subject=" + methodName;
+
+            return query;
     }
 }
 
@@ -55,7 +57,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
             codeLens.command = new CallStackCommand("loading code calls...", "");
 
             return new Promise<vscode.CodeLens>((resolve, reject) => {
-                resolve(codeLens);
+                //resolve(codeLens);
 
                 http.get(
                     WebApi.getData(codeLens.method, 1),
@@ -76,10 +78,10 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                                         var json = JSON.parse(content);
 
                                         if (json.result === null) {
-                                            codeLens.command.title = "never called";
+                                            codeLens.command.title = "Never called";
                                         }
                                         else {
-                                            codeLens.command.title = json.result.count + " calls in the last " + json.result.granularity + " days";
+                                            codeLens.command.title = String(json.result.count) + (json.result.count === 1? " call" : " calls") + " in the last " + json.result.granularity + " days";
                                         }
 
                                         resolve(codeLens);
