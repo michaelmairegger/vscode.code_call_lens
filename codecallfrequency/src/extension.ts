@@ -27,14 +27,21 @@ class CallStackLens extends vscode.CodeLens {
     }
 }
 
-class WebApi {
-    static protocol: string = "http";
-    static host: string = "servernamehere";
-    static port: number = 4000;
-    static webApiBase = WebApi.protocol + "://" + WebApi.host + ":" + WebApi.port + "/api/";
+class Settings {
+    static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
+    static isEnabled: boolean | undefined = vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled");
+    static hostname: string | undefined = vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
+    static granularity: number | undefined = vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity");
+}
 
+class WebApi {
     static getData(methodname: string, predicate: number): string {
-        return WebApi.webApiBase + "read_one?predicate=" + predicate + "&subject=" + methodname;
+
+        return Settings.hostname + "/api/read_one?" +
+            + "source=" + Settings.pluginGuid + "&" +
+            + "granularity=" + Settings.granularity + "&" +
+            + "predicate=" + predicate + "&" +
+            + "subject=" + methodname;
     }
 }
 
@@ -104,11 +111,14 @@ abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
         let match;
         let ret: vscode.CodeLens[] = [];
 
-        while (match = this.regEx.exec(text)) {
-            const startPos = document.positionAt(match.index);
-            const endPos = document.positionAt(match.index + match[0].length);
 
-            ret.push(new CallStackLens(new vscode.Range(startPos, endPos), match[0]));
+        if (Settings.isEnabled) {
+            while (match = this.regEx.exec(text)) {
+                const startPos = document.positionAt(match.index);
+                const endPos = document.positionAt(match.index + match[0].length);
+
+                ret.push(new CallStackLens(new vscode.Range(startPos, endPos), match[0]));
+            }
         }
 
         return ret;
@@ -116,17 +126,17 @@ abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
 }
 
 class CsharpCodeLensProvider extends RegexCodeLensProvider {
-    selector: vscode.DocumentSelector = { scheme:'file',language:'csharp' };
+    selector: vscode.DocumentSelector = { scheme: 'file', language: 'csharp' };
     regEx: RegExp = /(?:public|protected|internal|private)(\s+async){0,1}(?:\s+(?:abstract|static|virtual|override|sealed))?(?:\s+)(\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?)(?:\s+)(\w+)(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s*\(((?:\w+(?:<((?:\w+(?:\s*\,\s*)?)*)>)?\s+\w*(?:\s*\,\s*)?)*)\)/g;
 }
 
 class ElixirCodeLensProvider extends RegexCodeLensProvider {
-    selector: vscode.DocumentSelector = { scheme:'file',language:'elixir' };
+    selector: vscode.DocumentSelector = { scheme: 'file', language: 'elixir' };
     regEx: RegExp = /def[p]?\s+(\w+)\(.*\)\s*,?\s*do/g;
 }
 
 class JavaCodeLensProvider extends RegexCodeLensProvider {
-    selector: vscode.DocumentSelector = { scheme:'file',language:'java' };
+    selector: vscode.DocumentSelector = { scheme: 'file', language: 'java' };
     regEx: RegExp = /(public|protected|private|static|\s)+[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\) *(\{?|[^;])/g;
 }
 

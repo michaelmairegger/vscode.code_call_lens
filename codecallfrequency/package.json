@@ -1,9 +1,9 @@
 {
-    "name": "codecallfrequency",
-    "displayName": "CodeCallFrequency",
+    "name": "code_call_lens",
+    "displayName": "code_call_lens",
     "description": "",
     "version": "0.0.1",
-    "publisher": "m",
+    "publisher": "Michel Mairegger",
     "engines": {
         "vscode": "^1.23.0"
     },
@@ -11,7 +11,6 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.sayHello",
         "onLanguage:csharp",
         "onLanguage:java",
         "onLanguage:elixir"
@@ -23,6 +22,29 @@
         "watch": "tsc -watch -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "contributes": {
+        "configuration": {
+            "title": "Code call lens",
+            "properties": {
+                "code_call_lens.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Controls if the editor shows code calls CodeLens"
+                },
+                "code_call_lens.granularity":{
+                    "type":"integer",
+                    "minimum": 1,
+                    "default": 30,
+                    "description": "Limit the code call history up to the number of days specified"
+                },
+                "code_call_lens.hostname": {
+                    "type": "string",
+                    "default": "https://localhost",
+                    "description": "Determines the backend hostname"
+                }
+            }
+        }
     },
     "devDependencies": {
         "typescript": "^2.6.1",
