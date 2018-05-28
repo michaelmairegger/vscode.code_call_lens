@@ -66,7 +66,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
             codeLens.command = new CallStackCommand(codeLens.method, "");
 
             return new Promise<vscode.CodeLens>((resolve, reject) => {
-                resolve(codeLens);
+                //resolve(codeLens);
 
                 http.get(
                     WebApi.getHttpQuery(codeLens.method, 1),
