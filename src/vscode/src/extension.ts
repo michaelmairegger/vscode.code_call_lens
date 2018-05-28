@@ -2,8 +2,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as http from 'http';
 import { log } from 'util';
+import * as webRequest from 'web-request';
 
 class CallStackCommand implements vscode.Command {
     title: string;
@@ -49,7 +49,7 @@ class WebApi {
             "source=" + Settings.pluginGuid + "&" +
             "granularity=" + Settings.getGranularity() + "&" +
             "predicate=" + String(predicate) + "&" +
-            "subject=" + methodName;
+            "subject=" + encodeURIComponent(methodName);
 
         return query;
     }
@@ -60,52 +60,30 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
 
     abstract provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]>;
 
-    resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken): 
-    vscode.CodeLens | Thenable<vscode.CodeLens> {
+    resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken):
+        vscode.CodeLens | Thenable<vscode.CodeLens> {
         if (codeLens instanceof CallStackLens && codeLens) {
             codeLens.command = new CallStackCommand(codeLens.method, "");
 
-            return new Promise<vscode.CodeLens>((resolve, reject) => {
-                //resolve(codeLens);
+            return new Promise<vscode.CodeLens>(async (resolve, reject) => {
+                try {
+                    
+                    var query = WebApi.getHttpQuery(codeLens.method, 1);
+                    var json = await webRequest.json<any>(query);
 
-                http.get(
-                    WebApi.getHttpQuery(codeLens.method, 1),
-                    res => {
-                        let content: string = "";
-
-                        res.addListener("readable", () => {
-                            var line = res.read();
-                            if (line) {
-                                content += line;
-                            }
-                        });
-
-                        res.addListener("end",
-                            () => {
-                                if (codeLens.command) {
-                                    try {
-                                        var json = JSON.parse(content);
-
-                                        if (json.result === null) {
-                                            codeLens.command.title = "Never called";
-                                        }
-                                        else {
-                                            codeLens.command.title = String(json.result.count) + (json.result.count === 1 ? " call" : " calls") + " in the last " + json.result.granularity + " days";
-                                        }
-
-                                        resolve(codeLens);
-                                    }
-                                    catch (e) {
-                                        log(e);
-                                    }
-                                }
-                            });
-                    }).on("error", () => {
-                        if (codeLens.command) {
-                            codeLens.command.title = "Data server not available";
-                            resolve(codeLens);
+                    if (codeLens.command) {
+                        if (json.result === null) {
+                            codeLens.command.title = "Never called";
                         }
-                    });
+                        else {
+                            codeLens.command.title = String(json.result.count) + (json.result.count === 1 ? " call" : " calls") + " in the last " + json.result.granularity + " days";
+                        }
+                        resolve(codeLens);
+                    }
+                } catch (e) {
+                    log(e);
+                    reject(codeLens);
+                }
             });
 
         }
@@ -173,7 +151,7 @@ abstract class RegexCodeLensProvider extends CodeCallsCodeLensProvider {
 class IdentifierHelper {
     name: string;
     range: vscode.Range;
-    
+
     constructor(name: string, range: vscode.Range) {
         this.name = name;
         this.range = range;

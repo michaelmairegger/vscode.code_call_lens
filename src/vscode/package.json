@@ -1,9 +1,14 @@
 {
     "name": "code_call_lens",
     "displayName": "code_call_lens",
-    "description": "",
+    "description": "Shows code lens for called methods for supported languages",
     "version": "0.0.1",
     "publisher": "Michel Mairegger",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/xxMUROxx/vscode.code_call_lens"
+    },
+    "license": "MIT",
     "engines": {
         "vscode": "^1.23.0"
     },
@@ -51,6 +56,7 @@
         "vscode": "^1.1.6",
         "tslint": "^5.8.0",
         "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
+        "@types/mocha": "^2.2.42",
+        "web-request": "^1.0.7"
     }
 }
