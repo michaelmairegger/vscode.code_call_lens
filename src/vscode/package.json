@@ -47,6 +47,10 @@
                     "type": "string",
                     "default": "https://localhost",
                     "description": "Determines the backend hostname"
+                },
+                "code_call_lens.sparkline.enabled":{
+                    "type":"boolean",
+                    "default": true
                 }
             }
         }

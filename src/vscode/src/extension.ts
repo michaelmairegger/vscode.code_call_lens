@@ -29,17 +29,22 @@ class CallStackLens extends vscode.CodeLens {
 
 class Settings {
     static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
-
-    static getIsEnabled(): boolean | undefined {
-        return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled");
+ 
+    static getIsEnabled(): boolean {
+        return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled", true);
     }
 
     static getHostname(): string | undefined {
         return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
     }
 
-    static getGranularity(): number | undefined {
-        return vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity");
+    static getGranularity(): number {
+        return vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity", 30);
+    }
+
+    static isSparklineEnabled(): boolean
+    {
+        return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.sparkline.enabled", true);
     }
 }
 
@@ -52,6 +57,35 @@ class WebApi {
             "subject=" + encodeURIComponent(methodName);
 
         return query;
+    }
+}
+
+class Sparkline
+{
+    static sparklineValues = ['▁','▂','▃','▄','▅','▆','▇','█'];
+
+    public static getCharForValue(percentage: number):string
+    {
+        percentage = Math.random() * 100;
+
+        var index = percentage / 100 * (this.sparklineValues.length - 1);
+        return Sparkline.sparklineValues[Math.floor(index)];
+    }
+
+    public static get(methodName: string) : string{
+
+        if(!Settings.isSparklineEnabled())
+        {
+            return "";
+        }
+
+        var sparkline = "    ";
+
+        for (let index = 0; index < Settings.getGranularity(); index++) {
+            sparkline+= Sparkline.getCharForValue(0);
+            
+        }
+        return sparkline;
     }
 }
 
@@ -77,6 +111,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                         }
                         else {
                             codeLens.command.title = String(json.result.count) + (json.result.count === 1 ? " call" : " calls") + " in the last " + json.result.granularity + " days";
+                            codeLens.command.title += Sparkline.get(codeLens.method);
                         }
                         resolve(codeLens);
                     }
