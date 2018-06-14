@@ -59,9 +59,9 @@ class Settings {
 
 class WebApi {
     static getHttpQuery(methodName: string, predicate: number): string {
-        var query = Settings.getHostname() + "/api/read_one?" +
+        var query = Settings.getHostname() + "/api/read?" +
             "source=" + Settings.pluginGuid + "&" +
-            "date_interval=" + Settings.getDateInterval() + "&" +
+            "days=" + Settings.getDateInterval() + "&" +
             "bars=" + String(Settings.getNumberOfBars()) + "&" +
             "predicate=" + String(predicate) + "&" +
             "subject=" + encodeURIComponent(methodName);
@@ -111,11 +111,11 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                     var json = await webRequest.json<any>(query);
 
                     if (codeLens.command) {
-                        if (json.result === null) {
+                        if (json === null) {
                             codeLens.command.title = "Never called";
                         }
                         else {
-                            codeLens.command.title = String(json.result.number_of_calls) + (json.result.count === 1 ? " call" : " calls") + " in the last " + Settings.getDateInterval() + " days";
+                            codeLens.command.title = String(json.number_of_calls) + (json.count === 1 ? " call" : " calls") + " in the last " + Settings.getDateInterval() + " days";
                             codeLens.command.title += Sparkline.get(json.history);
                         }
                         resolve(codeLens);
