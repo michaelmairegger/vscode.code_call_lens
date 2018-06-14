@@ -29,7 +29,7 @@ class CallStackLens extends vscode.CodeLens {
 
 class Settings {
     static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
- 
+
     static getIsEnabled(): boolean {
         return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled", true);
     }
@@ -38,13 +38,22 @@ class Settings {
         return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
     }
 
-    static getGranularity(): number {
-        return vscode.workspace.getConfiguration().get<number>("code_call_lens.granularity", 30);
+    static getDateInterval(): number {
+        return vscode.workspace.getConfiguration().get<number>("code_call_lens.date_interval", 30);
     }
 
-    static isSparklineEnabled(): boolean
-    {
+    static isSparklineEnabled(): boolean {
         return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.sparkline.enabled", true);
+    }
+    static getNumberOfBars(): number {
+        if (!this.isSparklineEnabled()) {
+            return 0;
+        }
+
+        var numberOfDays = this.getDateInterval();
+        var barCount = vscode.workspace.getConfiguration().get<number>("code_call_lens.sparkline.numberOfBars", 15);
+
+        return Math.min(numberOfDays, barCount);
     }
 }
 
@@ -52,7 +61,8 @@ class WebApi {
     static getHttpQuery(methodName: string, predicate: number): string {
         var query = Settings.getHostname() + "/api/read_one?" +
             "source=" + Settings.pluginGuid + "&" +
-            "granularity=" + Settings.getGranularity() + "&" +
+            "date_interval=" + Settings.getDateInterval() + "&" +
+            "bars=" + String(Settings.getNumberOfBars()) + "&" +
             "predicate=" + String(predicate) + "&" +
             "subject=" + encodeURIComponent(methodName);
 
@@ -60,32 +70,27 @@ class WebApi {
     }
 }
 
-class Sparkline
-{
-    static sparklineValues = ['▁','▂','▃','▄','▅','▆','▇','█'];
+class Sparkline {
+    static sparklineValues = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-    public static getCharForValue(percentage: number):string
-    {
-        percentage = Math.random() * 100;
-
+    public static getCharForValue(percentage: number): string {
         var index = percentage / 100 * (this.sparklineValues.length - 1);
         return Sparkline.sparklineValues[Math.floor(index)];
     }
 
-    public static get(methodName: string) : string{
+    public static get(percentages: number[]): string {
+        if (percentages) {
+            if (!Settings.isSparklineEnabled()) {
+                return "";
+            }
 
-        if(!Settings.isSparklineEnabled())
-        {
-            return "";
+            var sparkline = "    ";
+            percentages.forEach(element => {
+                sparkline += Sparkline.getCharForValue(element);
+            });
+            return sparkline;
         }
-
-        var sparkline = "    ";
-
-        for (let index = 0; index < Settings.getGranularity(); index++) {
-            sparkline+= Sparkline.getCharForValue(0);
-            
-        }
-        return sparkline;
+        return "";
     }
 }
 
@@ -101,7 +106,7 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
 
             return new Promise<vscode.CodeLens>(async (resolve, reject) => {
                 try {
-                    
+
                     var query = WebApi.getHttpQuery(codeLens.method, 1);
                     var json = await webRequest.json<any>(query);
 
@@ -110,8 +115,8 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
                             codeLens.command.title = "Never called";
                         }
                         else {
-                            codeLens.command.title = String(json.result.count) + (json.result.count === 1 ? " call" : " calls") + " in the last " + json.result.granularity + " days";
-                            codeLens.command.title += Sparkline.get(codeLens.method);
+                            codeLens.command.title = String(json.result.number_of_calls) + (json.result.count === 1 ? " call" : " calls") + " in the last " + Settings.getDateInterval() + " days";
+                            codeLens.command.title += Sparkline.get(json.history);
                         }
                         resolve(codeLens);
                     }

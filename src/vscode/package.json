@@ -37,7 +37,7 @@
                     "default": true,
                     "description": "Controls if the editor shows code calls CodeLens"
                 },
-                "code_call_lens.granularity": {
+                "code_call_lens.date_interval": {
                     "type": "integer",
                     "minimum": 1,
                     "default": 30,
@@ -51,6 +51,10 @@
                 "code_call_lens.sparkline.enabled":{
                     "type":"boolean",
                     "default": true
+                },
+                "code_call_lens.sparkline.numberOfBars":{
+                    "type":"number",
+                    "default": 15
                 }
             }
         }
