@@ -1,9 +1,10 @@
-'use strict';
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { log } from 'util';
 import * as webRequest from 'web-request';
+import Settings = require("./settings");
+import Sparkline = require("./sparkline");
 
 class CallStackCommand implements vscode.Command {
   title: string;
@@ -12,90 +13,6 @@ class CallStackCommand implements vscode.Command {
   constructor(title: string, command: string) {
     this.title = title;
     this.command = command;
-  }
-}
-
-class CallStackLens extends vscode.CodeLens {
-  method: string;
-  calls: number;
-
-  constructor(range: vscode.Range, method: string) {
-    super(range);
-
-    this.method = method;
-    this.calls = 0;
-  }
-}
-
-class Settings {
-  static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
-
-  static getTopic(): string {
-    return vscode.workspace.getConfiguration().get<string>("code_call_lens.topic", "99f66761-d6c6-4100-840a-5ffa91c54349");
-  }
-
-  static getIsEnabled(): boolean {
-    return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled", true);
-  }
-
-  static getHostname(): string | undefined {
-    return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
-  }
-
-  static getDateInterval(): number {
-    return vscode.workspace.getConfiguration().get<number>("code_call_lens.number_of_days", 30);
-  }
-
-  static isSparklineEnabled(): boolean {
-    return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.sparkline.enabled", true);
-  }
-  static getNumberOfBars(): number {
-    if (!this.isSparklineEnabled()) {
-      return 0;
-    }
-
-    var numberOfDays = this.getDateInterval();
-    var barCount = vscode.workspace.getConfiguration().get<number>("code_call_lens.sparkline.number_of_bars", 15);
-
-    return Math.min(numberOfDays, barCount);
-  }
-}
-
-class WebApi {
-  static getHttpQuery(methodName: string, predicate: number): string {
-    var query = Settings.getHostname() + "/api/read?" +
-      "source=" + Settings.pluginGuid + "&" +
-      "days=" + Settings.getDateInterval() + "&" +
-      "bars=" + String(Settings.getNumberOfBars()) + "&" +
-      "predicate=" + String(predicate) + "&" +
-      "subject=" + encodeURIComponent(methodName) + "&" +
-      "topic=" + Settings.getTopic();
-
-    return query;
-  }
-}
-
-class Sparkline {
-  static sparklineValues = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
-
-  public static getCharForValue(percentage: number): string {
-    var index = percentage / 100 * (this.sparklineValues.length - 1);
-    return Sparkline.sparklineValues[Math.floor(index)];
-  }
-
-  public static get(percentages: number[]): string {
-    if (percentages) {
-      if (!Settings.isSparklineEnabled()) {
-        return "";
-      }
-
-      var sparkline = "    ";
-      percentages.forEach(element => {
-        sparkline += Sparkline.getCharForValue(element);
-      });
-      return sparkline;
-    }
-    return "";
   }
 }
 
@@ -111,8 +28,13 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
 
       return new Promise<vscode.CodeLens>(async (resolve, reject) => {
         try {
-
-          var query = WebApi.getHttpQuery(codeLens.method, 1);
+          var query = Settings.getHostname() + "/api/read?" +
+            "source=" + Settings.pluginGuid + "&" +
+            "days=" + Settings.getDateInterval() + "&" +
+            "bars=" + String(Settings.getNumberOfBars()) + "&" +
+            "predicate=1&" +
+            "subject=" + encodeURIComponent(codeLens.method) + "&" +
+            "topic=" + Settings.getTopic();
           var json = await webRequest.json<any>(query);
 
           if (codeLens.command) {
@@ -200,6 +122,18 @@ class IdentifierHelper {
   constructor(name: string, range: vscode.Range) {
     this.name = name;
     this.range = range;
+  }
+}
+
+class CallStackLens extends vscode.CodeLens {
+  method: string;
+  calls: number;
+
+  constructor(range: vscode.Range, method: string) {
+    super(range);
+
+    this.method = method;
+    this.calls = 0;
   }
 }
 
