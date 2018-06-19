@@ -1,0 +1,78 @@
+{
+  "name": "codecalllens",
+  "displayName": "code_call_lens",
+  "description": "Shows code lens for called methods for supported languages",
+  "version": "0.0.1",
+  "publisher": "unibz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xxMUROxx/vscode.code_call_lens"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.23.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:csharp",
+    "onLanguage:java",
+    "onLanguage:elixir"
+  ],
+  "main": "./out/extension",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "code_call_lens",
+      "properties": {
+        "code_call_lens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Controls if code_call_lens is visible."
+        },
+        "code_call_lens.number_of_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Limit the code call history up to the specified number of days."
+        },
+        "code_call_lens.hostname": {
+          "type": "string",
+          "default": "https://localhost",
+          "description": "Determines the hostname of the back-end."
+        },
+        "code_call_lens.topic": {
+          "type": "string",
+          "default": "99f66761-d6c6-4100-840a-5ffa91c54349",
+          "description": "Determines the topic used to upload the data."
+        },
+        "code_call_lens.sparkline.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Determines if the sparkline is enabled."
+        },
+        "code_call_lens.sparkline.number_of_bars": {
+          "type": "number",
+          "minimum": 1,
+          "default": 15,
+          "description": "Determines the number of bars. Must be smaller than code_call_lens.number_of_days."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "typescript": "^2.6.1",
+    "vscode": "^1.1.6",
+    "tslint": "^5.8.0",
+    "@types/node": "^7.0.43",
+    "@types/mocha": "^2.2.42",
+    "web-request": "^1.0.7"
+  }
+}

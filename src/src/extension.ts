@@ -29,7 +29,10 @@ class CallStackLens extends vscode.CodeLens {
 
 class Settings {
   static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
-  static pluginTopic: string = "99f66761-d6c6-4100-840a-5ffa91c54349";
+
+  static getTopic(): string {
+    return vscode.workspace.getConfiguration().get<string>("code_call_lens.topic", "99f66761-d6c6-4100-840a-5ffa91c54349");
+  }
 
   static getIsEnabled(): boolean {
     return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled", true);
@@ -40,7 +43,7 @@ class Settings {
   }
 
   static getDateInterval(): number {
-    return vscode.workspace.getConfiguration().get<number>("code_call_lens.date_interval", 30);
+    return vscode.workspace.getConfiguration().get<number>("code_call_lens.number_of_days", 30);
   }
 
   static isSparklineEnabled(): boolean {
@@ -52,7 +55,7 @@ class Settings {
     }
 
     var numberOfDays = this.getDateInterval();
-    var barCount = vscode.workspace.getConfiguration().get<number>("code_call_lens.sparkline.numberOfBars", 15);
+    var barCount = vscode.workspace.getConfiguration().get<number>("code_call_lens.sparkline.number_of_bars", 15);
 
     return Math.min(numberOfDays, barCount);
   }
@@ -66,7 +69,7 @@ class WebApi {
       "bars=" + String(Settings.getNumberOfBars()) + "&" +
       "predicate=" + String(predicate) + "&" +
       "subject=" + encodeURIComponent(methodName) + "&" +
-      "topic=" + Settings.pluginTopic;
+      "topic=" + Settings.getTopic();
 
     return query;
   }
