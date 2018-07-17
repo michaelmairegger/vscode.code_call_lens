@@ -4,15 +4,15 @@ class Settings {
   static pluginGuid: string = "3f79485f-0722-46c3-9d26-e728ffae80ae";
 
   static getTopic(): string {
-    return vscode.workspace.getConfiguration().get<string>("code_call_lens.topic", "99f66761-d6c6-4100-840a-5ffa91c54349");
+    return vscode.workspace.getConfiguration().get<string>("code_call_lens.topic", "94914ef7-692a-4e93-9144-f2b7bc92a139");
   }
 
   static getIsEnabled(): boolean {
     return vscode.workspace.getConfiguration().get<boolean>("code_call_lens.enabled", true);
   }
 
-  static getHostname(): string | undefined {
-    return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname");
+  static getHostname(): string {
+    return vscode.workspace.getConfiguration().get<string>("code_call_lens.hostname", "https://squirrel.inf.unibz.it");
   }
 
   static getDateInterval(): number {

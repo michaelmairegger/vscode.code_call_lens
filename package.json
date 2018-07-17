@@ -2,7 +2,7 @@
   "name": "codecalllens",
   "displayName": "code_call_lens",
   "description": "Shows code lens for called methods for supported languages",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "unibz",
   "repository": {
     "type": "git",
@@ -45,12 +45,12 @@
         },
         "code_call_lens.hostname": {
           "type": "string",
-          "default": "https://localhost",
+          "default": "https://squirrel.inf.unibz.it",
           "description": "Determines the hostname of the back-end."
         },
         "code_call_lens.topic": {
           "type": "string",
-          "default": "99f66761-d6c6-4100-840a-5ffa91c54349",
+          "default": "94914ef7-692a-4e93-9144-f2b7bc92a139",
           "description": "Determines the topic used to upload the data."
         },
         "code_call_lens.sparkline.enabled": {

@@ -6,6 +6,7 @@ import * as webRequest from 'web-request';
 import Settings = require("./settings");
 import Sparkline = require("./sparkline");
 
+
 class CallStackCommand implements vscode.Command {
   title: string;
   command: string;
@@ -27,7 +28,8 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
       codeLens.command = new CallStackCommand(codeLens.method, "");
 
       return new Promise<vscode.CodeLens>(async (resolve, reject) => {
-        try {
+        if (codeLens.command) {
+
           var query = Settings.getHostname() + "/api/read?" +
             "source=" + Settings.pluginGuid + "&" +
             "days=" + Settings.getDateInterval() + "&" +
@@ -35,24 +37,29 @@ abstract class CodeCallsCodeLensProvider implements vscode.CodeLensProvider {
             "predicate=1&" +
             "subject=" + encodeURIComponent(codeLens.method) + "&" +
             "topic=" + Settings.getTopic();
-          var json = await webRequest.json<any>(query);
 
-          if (codeLens.command) {
+          try {
+            var json = await webRequest.json<any>(query);
+
             if (json === null) {
-              codeLens.command.title = "Never called";
+              codeLens.command.title = "There was no response from the server.";
             }
             else {
               codeLens.command.title = String(json.number_of_calls) + (json.count === 1 ? " call" : " calls") + " in the last " + Settings.getDateInterval() + " days";
               codeLens.command.title += Sparkline.get(json.history);
             }
             resolve(codeLens);
+
+          } catch (e) {
+            log(e);
+
+            codeLens.command.title = "The following error occurred: " + String(e);
+            resolve(codeLens);
           }
-        } catch (e) {
-          log(e);
+        } else {
           reject(codeLens);
         }
       });
-
     }
     return Promise.reject<vscode.CodeLens>(codeLens);
   }
